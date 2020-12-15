@@ -120,6 +120,22 @@ cd ..
 
 - Reused from [this project](https://github.com/Mira0507/seqc_comparison/blob/master/README.md)
 
+#### 2-1. Tools for alignment/mapping
+
+- HISAT2: http://daehwankimlab.github.io/hisat2
+- Samtools: http://www.htslib.org/doc/#manual-pages
+- STAR: https://github.com/alexdobin/STAR
+- Salmon: https://salmon.readthedocs.io/en/latest
+- bedtools: https://bedtools.readthedocs.io/en/latest
+- gawk: https://www.gnu.org/software/gawk/manual/gawk.html
+
+#### 2-2. Tools for counting and differential expression (DE) analysis
+
+- DESeq2: http://bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html
+- Tximport: http://bioconductor.org/packages/release/bioc/vignettes/tximport/inst/doc/tximport.html
+- Rsubread: https://bioconductor.org/packages/release/bioc/html/Rsubread.html
+
+
 ### 3. Reference files 
 
 - Same references as [this project](https://github.com/Mira0507/seqc_comparison/blob/master/README.md)
@@ -180,4 +196,110 @@ cd ..
 
 ```bash
 
+
+#!/bin/bash 
+
+# Define directory and sample names
+refdir=../SEQC/reference_GENCODE/hisat2_index/index   # reference directory
+samples=(Mock-rep{1..3} SARS-CoV-2-rep{1..3})                 # sample names
+outdir=hisat2_output                          # output directory
+indir=rawdata                                 # input directory
+
+mkdir $outdir 
+
+
+for read in ${samples[*]} 
+
+do 
+
+    hisat2 -q -p 16 --seed 23 -x $refdir -U $indir/${read}.fastq.gz -S $outdir/$read.sam 
+
+done 
+
+
+```
+
+
+#### 4-3. Converting SAM to BAM 
+
+- uses samtools
+- hisat2_samtobam.sh
+
+```bash
+#!/bin/bash
+
+cd hisat2_output
+
+input=(Mock-rep{1..3} SARS-CoV-2-rep{1..3})  
+
+for f in ${input[*]}
+
+do
+    samtools view -bS -@ 16 $f.sam > $f.bam 
+done 
+
+
+cd ..
+```
+
+#### 4-4. Sorting 
+
+- uses samtools
+- hisat2_sort.sh
+
+```bash
+#!/bin/bash
+
+cd hisat2_output
+
+input=(Mock-rep{1..3} SARS-CoV-2-rep{1..3})  
+
+for f in ${input[*]}
+
+do
+    samtools sort -@ 16 $f.bam -o $f.sorted.bam
+
+done 
+
+
+cd ..
+
+# Delete SAM files after samtools run
+```
+
+
+### 5. Salmon mapping
+
+#### 5-1. Indexing 
+
+- Reused from [this project](https://github.com/Mira0507/seqc_comparison/blob/master/README.md)
+
+#### 5-2. Mapping
+
+- salmon_map.sh
+
+```bash
+#!/bin/bash
+
+# Define name of input/output directory
+in=rawdata
+out=salmon_output
+
+
+# Define index file directory
+ind=../../SEQC/reference_GENCODE/salmon_index/gencode_index
+
+# Define file names 
+samples=(Mock-rep{1..3} SARS-CoV-2-rep{1..3})
+
+mkdir $out
+
+cd $in
+
+for read in ${samples[*]}
+do
+    salmon quant -i $ind -l A --gcBias --seqBias -r ${read}.fastq.gz -p 16 --validateMappings -o ../$out/${read}.salmon_quant
+done
+
+cd ..
 ```
