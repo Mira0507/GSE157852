@@ -39,11 +39,11 @@ library(rmarkdown)
 library(ggplot2)
 library(pheatmap)
 library(ggrepel)
-library(gridExtra)
 library(AnnotationHub)
 library(tximport)
 library(Rsubread)
 library(DESeq2)
+library(UpSetR)
 ```
 
 ## Setting AnnotationHub
@@ -303,11 +303,11 @@ for (x in Aligners) {
 
 
 # Remove version of GENEID and duplicated rows in STAR & HISAT2 count tables
-for (x in Aligners[2:3]) {
+for (x in Aligners) {
 
     countList[[x]] <- clean.annotation.fn(countList[[x]]) %>% 
 
-        unique()
+        distinct()
 
 }
 
@@ -361,7 +361,7 @@ comparing.barplot.fn <- function(df, yval, title, ytitle) {
 
     ggplot(df, 
        aes(x=Sample, y=yval, group=Aligner, fill=Aligner)) +
-    geom_bar(stat="identity", position="dodge", color="black") +
+    geom_bar(stat="identity", position="dodge") +
     theme_bw() +
     ggtitle(title) + 
     ylab(ytitle)
@@ -802,7 +802,8 @@ ggplot(lfc.dataframe, aes(x=baseMean, y=log2FoldChange, color=FDR)) +
         theme_bw() + 
         scale_color_manual(values=c("blue", "grey")) + 
         ggtitle(paste("MA plot")) + 
-        ylim(yl[1], yl[2])+ 
+        ylim(yl[1], yl[2]) + 
+        theme(strip.text.x=element_text(size=10)) +
         geom_hline(yintercept=c(mLog[1], mLog[2]), 
                    linetype="dashed", color="red") 
 
@@ -873,12 +874,243 @@ profile.heatmap.fn(heatmap.df.List[[Aligners[3]]], Aligners[3])
 
 ## NA statistics: zero count genes & outlier genes
 
+#### When NAs appear in  
+
+#### - **log2FoldChange**: zero counts in all samples
+
+#### - **padj**: too little information 
+
+#### - **pval & padj**: at least one replicate was an outlier 
+
+```{r NA_genes}
+
+# Count number of NA genes  
+type=c("Zero Counts", "Outliers", "Total NA Genes") 
+
+# Create a data frame storing number of NA genes by type
+NA.genes <- lfc.dataframe %>% 
+    group_by(Alignment) %>% 
+    summarize(zero=sum(is.na(log2FoldChange)), 
+              outlier=sum(is.na(pvalue) & is.na(padj))) %>% 
+    mutate(total=zero + outlier) %>%
+    gather(Type, Number, -Alignment) %>% 
+    mutate(Type=factor(case_when(Type == "zero" ~ type[1],
+                                 Type == "outlier" ~ type[2],
+                                 Type == "total" ~ type[3]),
+                       levels=type))
+
+# Plot number of NA genes 
+ggplot(NA.genes, 
+       aes(x=Type, y=Number, group=Alignment, fill=Alignment, label=Number)) + 
+    geom_bar(stat="identity", position="dodge") + 
+    theme_bw() +
+    geom_text(position=position_dodge(width=1), vjust=1.5) + 
+    ggtitle("Number of NA Genes") + 
+    ylab("Number of Genes")
+
+
+```
+
+## Ranking DEGs by alginer
+
+#### - **fdr.rank**: ranked by FDR
+
+#### - **lfc.rank**: ranked by absolute fold change 
+
+#### - **up.lfc.rank**: ranked by magnitude of fold change increase 
+
+#### - **down.lfc.rank**: ranked by manitude of fold change decrease
+
+```{r DEG_ranking}
+
+# Create a new list having DE table with FDR below alpha
+fdr.rank <- lfcList
+lfc.rank <- lfcList
+up.lfc.rank <- lfcList
+down.lfc.rank <- lfcList
+
+# Set a sorting genes with FDR below alpha 
+filter.fdr.fn <- function(df) {as.data.table(df[df$FDR == paste("<", alpha),])}
+
+# Set a function creating a column assigning ranking 
+Ranking.fn <- function(x) {mutate(x, Rank=1:nrow(x))}
+
+
+for (x in Aligners) {
+
+    rdf <- lfcList[[x]]
+
+    fdr.rank[[x]] <- filter.fdr.fn(rdf) %>% arrange(padj) %>% Ranking.fn()
+
+    lfc.rank[[x]] <- filter.fdr.fn(rdf) %>% arrange(desc(abs(log2FoldChange))) %>% Ranking.fn()
+
+    up.lfc.rank[[x]] <- filter.fdr.fn(rdf) %>% arrange(desc(log2FoldChange)) %>% Ranking.fn() 
+
+    down.lfc.rank[[x]] <- filter.fdr.fn(rdf) %>% arrange(log2FoldChange) %>% Ranking.fn()
+
+}
+
+
+
+# Explore the ranking outputs
+head(fdr.rank[[1]])
+head(lfc.rank[[1]])
+head(up.lfc.rank[[1]])
+head(down.lfc.rank[[1]])
+```
+
+
+## Calculating rank difference between STAR and HISAT2
+
+#### Salmon was excluded due to extremely small number of genes found
+
+
+```{r rank_difference}
+
+
+# Set a function rebuilding DE tables with gene ranks 
+rankdiff.fn <- function(List){
+
+    # Select columns and join the data frames by gene
+    full_join(List[[Aligners[2]]][, .(GENEID, Alignment, Rank, baseMean)], 
+              List[[Aligners[3]]][, .(GENEID, Alignment, Rank, baseMean)], 
+              by="GENEID") %>%
+    
+    # Add columns assining gene expression levels, rank differences, and mean ranks
+    mutate(logMeanExpression=log(baseMean.x+baseMean.y/2),
+           RankDiff=Rank.x-Rank.y, 
+           MeanRank=(Rank.x+Rank.y)/2)
+} 
+
+# Calculate rank difference by ranking type
+fdr.rankdiff <- rankdiff.fn(fdr.rank)
+lfc.rankdiff <- rankdiff.fn(lfc.rank)
+up.lfc.rankdiff <- rankdiff.fn(up.lfc.rank)
+down.lfc.rankdiff <- rankdiff.fn(down.lfc.rank)
+
+# Explore the calculated rank differences
+head(fdr.rankdiff)
+head(lfc.rankdiff)
+head(up.lfc.rankdiff)
+head(down.lfc.rankdiff)
 
 
 
 
+```
+
+## Visualizing DEG rankings
 
 
+#### - **x-axis**: genes aligned by STAR
+
+#### - **y-axis**: genes aligned by HISAT2
+
+#### - Black diagonal lines: ranking in STAR = HISAT2 
+
+#### - Dot color: gene expression level (log-baseMean)
+
+#### - 409 genes were missing in the plots
+
+
+```{r DEG_ranking_plot}
+
+# Set a function plotting DEG rankings 
+ranking.plot.fn <- function(df, rankedby) {
+
+    ggplot(df, 
+           aes(x=Rank.x, y=Rank.y, color=logMeanExpression)) + geom_point(alpha=0.5) + theme_bw() + theme(strip.text.x=element_text(size=10)) + xlab("Ranking in STAR") + ylab("Ranking in HISAT2") + geom_abline(slope=1, color="black", size=0.5) + ggtitle(paste("Gene Ranking by", rankedby)) + scale_color_gradient(low="blue", high="red") 
+}
+
+# Plot rankings by ranking type
+ranking.plot.fn(fdr.rankdiff, "FDR")
+ranking.plot.fn(lfc.rankdiff, "Log2FoldChange")
+ranking.plot.fn(up.lfc.rankdiff, "Log2FoldChange (Increase)")
+ranking.plot.fn(down.lfc.rankdiff, "Log2FoldChange (Decrease)")
+```
+
+## Visualizing DEG ranks II: Rank difference 
+
+#### - **x-axis**: expression level (log-baseMean)
+
+#### - **y-axis**: rank difference (STAR ranking - HISAT2 ranking)
+
+#### - Black horizontal lines: ranking in STAR = HISAT2 
+
+#### - Dot color: average ranking 
+
+#### - 409 genes were missing in the plots
+
+```{r DEG_rankdiff_plot}
+
+# Set a function plotting DEG rank difference
+rankdiff.plot.fn <- function(df, rankedby) { 
+
+    ggplot(df, aes(x=logMeanExpression, y=RankDiff, color=MeanRank)) + 
+        geom_point(alpha=0.5) + 
+        theme_bw() +         
+        ylab("Rank Difference (STAR - HISAT2)") + 
+        ggtitle(paste("Rank Difference (STAR - HISAT2)\n in", rankedby)) + 
+        geom_hline(yintercept=0, color="black", size=0.5) + scale_color_gradient(low="blue", high="red") 
+
+}
+
+
+
+# Display the plots in the same y-scale
+rankdiff.plot.fn(fdr.rankdiff, "FDR") + ylim(-2500, 2500) 
+rankdiff.plot.fn(lfc.rankdiff, "Log2FoldChange") + ylim(-2500, 2500)
+rankdiff.plot.fn(up.lfc.rankdiff, "Log2FoldChange (Increase)") + ylim(-2500, 2500)
+rankdiff.plot.fn(down.lfc.rankdiff, "Log2FoldChange (Decrease)") + ylim(-2500, 2500)
+           
+# Display the plots in free y-scale
+rankdiff.plot.fn(lfc.rankdiff, "Log2FoldChange (Large Mag)") + ylim(-1500, 1500)
+rankdiff.plot.fn(up.lfc.rankdiff, "Log2FoldChange (Increase, Large Mag)") + ylim(-750, 750)
+rankdiff.plot.fn(down.lfc.rankdiff, "Log2FoldChange (Decrease, Large Magn)") + ylim(-600, 600)
+
+```
+
+## Summarizing up/down DEGs with an upset plot
+
+#### **red bar**: aligner
+
+#### **blue bar**: directionality of gene expression change
+
+```{r upset_plot}
+
+# Generate a data frame storing upset input variables
+upset.dataframe <- subset(lfc.dataframe, !is.na(padj)) %>%
+    
+    mutate(Up=ifelse(FDR == paste("<", alpha) & log2FoldChange > 0, GENEID, ""), 
+
+           Down=ifelse(FDR == paste("<", alpha) & log2FoldChange < 0, GENEID, ""),
+
+           Unchanged=ifelse(FDR == paste(">", alpha), GENEID, ""),
+
+           Salmon=ifelse(Alignment == "Salmon", GENEID, ""), 
+
+           STAR=ifelse(Alignment == "STAR", GENEID, ""),
+
+           HISAT2=ifelse(Alignment == "HISAT2", GENEID, ""))
+
+# Generate a list input 
+upset.input <- list(Up=upset.dataframe$Up, 
+                    Down=upset.dataframe$Down,
+                    Unchanged=upset.dataframe$Unchanged, 
+                    Salmon=upset.dataframe$Salmon,
+                    STAR=upset.dataframe$STAR,
+                    HISAT2=upset.dataframe$HISAT2)
+
+# Create an upset plot
+upset(fromList(upset.input), 
+      sets=names(upset.input),   # What group to display 
+      sets.x.label="Number of Genes per Group",
+      order.by="freq",
+      point.size=3,
+      sets.bar.color=c("red", "red", "blue", "red", "blue", "blue"),
+      text.scale = 1.5, number.angles=30)
+
+```
 
 ## Session Info
 
