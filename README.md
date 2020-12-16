@@ -303,3 +303,7 @@ done
 
 cd ..
 ```
+
+### 5. Counting and downstream analysis by R 
+
+Go to the [R script](https://github.com/Mira0507/GSE157852/blob/master/DE.Rmd)
