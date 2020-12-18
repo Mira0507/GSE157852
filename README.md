@@ -1,4 +1,4 @@
-## STAR vs HISAT2 
+## STAR vs HISAT2 vs Salmon
 
 ### 1. Rawdata 
 
