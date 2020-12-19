@@ -306,4 +306,5 @@ cd ..
 
 ### 5. Counting and downstream analysis by R 
 
-Go to the [R script](https://github.com/Mira0507/GSE157852/blob/master/DE.Rmd)
+- STAR vs HISAT2 vs Salmon comparison: [DE.Rmd](https://github.com/Mira0507/GSE157852/blob/master/DE.Rmd)
+- Salmon TPM vs Count input comparison: [salmon_tpm_count.Rmd](https://github.com/Mira0507/GSE157852/blob/master/salmon_tpm_count.Rmd)
