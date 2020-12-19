@@ -1,6 +1,6 @@
 ---
 output: html_document
-title: "Comparative analysis of Alignment/Mapping Pipelines"
+title: "Comparative analysis of Alignment/Mapping Pipelines in SARS-CoV-2-infected neuron cells"
 author: "Mira Sohn" 
 ---
 
@@ -38,7 +38,6 @@ library(tidyverse)
 library(rmarkdown)
 library(ggplot2)
 library(pheatmap)
-library(ggrepel)
 library(AnnotationHub)
 library(tximport)
 library(Rsubread)
@@ -737,7 +736,7 @@ lfc.dataframe$Alignment <- factor(lfc.dataframe$Alignment,
 # Plot distribution of FDR 
 ggplot(lfc.dataframe, 
        aes(x=padj, y=..count.., color=Alignment)) + 
-    geom_density() + 
+    geom_density(size=1) + 
     theme_bw() + 
     scale_x_log10() + 
     ggtitle("Distribution of False Discovery Rate (FDR) by Aligner") + 
@@ -765,10 +764,10 @@ ggplot(valid.lfc.df,
        aes(x=log2FoldChange,
            y=..count.., 
            color=Alignment)) +
-geom_density() + 
+geom_density(size=1) + 
 theme_bw() + 
 geom_vline(xintercept=c(-1, 1), 
-           linetype="dashed", color="black", size=0.5) + 
+           linetype="dashed", color="black", size=1) + 
 ggtitle("Distribution of log2FoldChange Values by Aligner (FDR < 0.1)") +
 ylab("Count") + 
 xlim(-10, 10)    # Change xlim by datatype
@@ -789,7 +788,7 @@ xlim(-10, 10)    # Change xlim by datatype
 ```{r MAplot}
 
 # Set ylim: has to adjusted by users depending on data 
-yl <- c(-15, 15)
+yl <- c(-12, 12)
 
 # Set min log2 fold change of interest 
 mLog <- c(-1, 1)
@@ -1044,31 +1043,165 @@ ranking.plot.fn(down.lfc.rankdiff, "Log2FoldChange (Decrease)")
 ```{r DEG_rankdiff_plot}
 
 # Set a function plotting DEG rank difference
-rankdiff.plot.fn <- function(df, rankedby) { 
+rankdiff.plot.fn <- function(df, rankedby, ylim) { 
 
     ggplot(df, aes(x=logMeanExpression, y=RankDiff, color=MeanRank)) + 
         geom_point(alpha=0.5) + 
         theme_bw() +         
         ylab("Rank Difference (STAR - HISAT2)") + 
         ggtitle(paste("Rank Difference (STAR - HISAT2)\n in", rankedby)) + 
-        geom_hline(yintercept=0, color="black", size=0.5) + scale_color_gradient(low="blue", high="red") 
+        geom_hline(yintercept=0, color="black", size=0.5) + scale_color_gradient(low="blue", high="red") + 
+        ylim(-ylim, ylim)
 
 }
 
 
 
 # Display the plots in the same y-scale
-rankdiff.plot.fn(fdr.rankdiff, "FDR") + ylim(-2500, 2500) 
-rankdiff.plot.fn(lfc.rankdiff, "Log2FoldChange") + ylim(-2500, 2500)
-rankdiff.plot.fn(up.lfc.rankdiff, "Log2FoldChange (Increase)") + ylim(-2500, 2500)
-rankdiff.plot.fn(down.lfc.rankdiff, "Log2FoldChange (Decrease)") + ylim(-2500, 2500)
+rankdiff.plot.fn(fdr.rankdiff, "FDR", 2500) 
+rankdiff.plot.fn(lfc.rankdiff, "Log2FoldChange", 2500)
+rankdiff.plot.fn(up.lfc.rankdiff, "Log2FoldChange (Increase)", 2500)
+rankdiff.plot.fn(down.lfc.rankdiff, "Log2FoldChange (Decrease)", 2500)
            
 # Display the plots in free y-scale
-rankdiff.plot.fn(lfc.rankdiff, "Log2FoldChange (Large Mag)") + ylim(-1500, 1500)
-rankdiff.plot.fn(up.lfc.rankdiff, "Log2FoldChange (Increase, Large Mag)") + ylim(-750, 750)
-rankdiff.plot.fn(down.lfc.rankdiff, "Log2FoldChange (Decrease, Large Magn)") + ylim(-600, 600)
+rankdiff.plot.fn(lfc.rankdiff, "Log2FoldChange (free y-scale)", 1500)
+rankdiff.plot.fn(up.lfc.rankdiff, "Log2FoldChange (Increase, free y-scale)", 750)
+rankdiff.plot.fn(down.lfc.rankdiff, "Log2FoldChange (Decrease, free y-scale)", 600)
 
 ```
+
+
+
+## Distribution of rank difference 
+
+```{r distribution_rankdifference}
+
+# Create a list storing rankdiff data frames 
+rankList <- list(fdr.rankdiff,
+                 lfc.rankdiff,
+                 up.lfc.rankdiff,
+                 down.lfc.rankdiff)
+
+
+# Assine result column as a factor with levels 
+rankdiff.levels <- c("FDR", 
+                     "log2FoldChange", 
+                     "log2FoldChange.Increase", 
+                     "log2FoldChange.Decrease")
+
+# Name the list 
+names(rankList) <- rankdiff.levels
+
+
+# Create a new data frame storing rank difference by result type
+rankdiff.dist <- data.frame(FDR=abs(rankList[[1]]$RankDiff), 
+                            log2FoldChange=abs(rankList[[2]]$RankDiff),
+                            log2FoldChange.Increase=abs(rankList[[3]]$RankDiff),
+                            log2FoldChange.Decrease=abs(rankList[[4]]$RankDiff)) %>% gather(Result, RankDiff) 
+
+rankdiff.dist$Result <- factor(rankdiff.dist$Result, levels=rankdiff.levels)
+
+# Plot distribution of absolute rank difference
+ggplot(rankdiff.dist,
+       aes(x=Result, y=RankDiff, color=Result)) +
+geom_jitter(alpha=0.5) + 
+geom_boxplot(alpha=0.5, fill="grey", color="black") + 
+theme_bw() + 
+theme(axis.text.x=element_text(angle=45, hjust=1)) +
+ggtitle("Distribution of Absolute Rank Difference without Shrinkage") + 
+ylab("Absolute Rank Difference") 
+```
+
+
+## Relationship between rank difference and number of transcript versions
+
+#### - **y-axis**: abs(TPM-Count inputs) 
+
+#### - **x-axis**: number of transcripts (number of transcript id / gene id) 
+
+#### - **dot color**: mean rank
+
+
+```{r rankdiff_vs_transcripts}
+
+# Create a data frame storing the number of transcripts by gene id
+AnnoDb.ntrans <- AnnoDb %>% 
+    group_by(ENSEMBL) %>% 
+    summarize(num.trans=n())
+
+# Set a function adding the number of transcripts by gene id 
+add.ntrans.fn <- function(df) {
+
+    left_join(df, AnnoDb.ntrans, by=c("GENEID"="ENSEMBL"))}
+
+
+
+
+# Add a column indicating the number of transcripts by gene id to every rankdiff data frame
+for (x in rankdiff.levels) {
+
+    rankList[[x]] <- add.ntrans.fn(rankList[[x]])
+}
+
+
+# Explore the edited data frames
+summary(rankList)
+head(rankList[[1]])
+head(rankList[[2]])
+head(rankList[[3]])
+head(rankList[[4]])
+
+# Set a function plotting rank difference vs number of transcripts 
+rank.ntrans.plot.fn <- function(df, title) {
+
+    ggplot(df, aes(x=num.trans, y=abs(RankDiff), color=MeanRank)) + 
+        geom_jitter(alpha=0.5) + 
+        theme_bw() + 
+        ggtitle(paste("Rank Difference vs Number of Transcripts in", title)) + 
+        xlab("Number of Transcripts") + 
+        ylab("Absolute Rank Difference (STAR - HISAT2)") + scale_color_gradient(low="blue", high="red") 
+}
+
+# Print the plots
+rank.ntrans.plot.fn(rankList[[1]], "FDR")
+rank.ntrans.plot.fn(rankList[[2]], "log2FoldChange")
+rank.ntrans.plot.fn(rankList[[3]], "log2FoldChange (Increase)")
+rank.ntrans.plot.fn(rankList[[4]], "log2FoldChange (Decrease)")
+
+```
+
+
+
+## Finding genes having large difference in rankings 
+
+```{r large_rankdiff_genes}
+
+# Initialize a list storing rankdiff genes 
+large.rankdiff <- rankList
+
+# Assign a vector storing minimum (thresholds) rankdiff for filtering large rankdiff genes
+rankdiff.thr <- c(500, 250, 250, 250)
+
+names(rankdiff.thr) <- rankdiff.levels
+
+for (x in rankdiff.levels) {
+
+    # Filter out observations below the rankdiff thresholds
+    large.rankdiff[[x]] <- subset(rankList[[x]], 
+                                      abs(RankDiff) > rankdiff.thr[x]) 
+
+}
+
+# Explore the filtered genes 
+summary(large.rankdiff)
+
+dim(large.rankdiff[[rankdiff.levels[1]]])
+dim(large.rankdiff[[rankdiff.levels[2]]])
+dim(large.rankdiff[[rankdiff.levels[3]]])
+dim(large.rankdiff[[rankdiff.levels[4]]])
+
+```
+
 
 ## Summarizing up/down DEGs with an upset plot
 
