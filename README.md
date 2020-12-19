@@ -141,15 +141,15 @@ cd ..
 - Same references as [this project](https://github.com/Mira0507/seqc_comparison/blob/master/README.md)
 - GENCODE GRCh38 (hg38) release 36 (v36)
 
-### 3. STAR alignment
+### 4. STAR alignment
 
-#### 3-1. Indexing
+#### 4-1. Indexing
 
 - Reused from [this project](https://github.com/Mira0507/seqc_comparison/blob/master/README.md)
 
 
 
-#### 3-2. Alignment
+#### 4-2. Alignment
 
 - star_alignment.sh
 
@@ -184,13 +184,13 @@ cd ..
 # Note: the output files are generated in the current directory
 ```
 
-### 4. HISAT2 Alignment
+### 5. HISAT2 Alignment
 
-#### 4-1. Indexing 
+#### 5-1. Indexing 
 
 - Reused from [this project](https://github.com/Mira0507/seqc_comparison/blob/master/README.md)
 
-#### 4-2. Alignment 
+#### 5-2. Alignment 
 
 - hisat2_align.sh
 
@@ -220,7 +220,7 @@ done
 ```
 
 
-#### 4-3. Converting SAM to BAM 
+#### 5-3. Converting SAM to BAM 
 
 - uses samtools
 - hisat2_samtobam.sh
@@ -242,7 +242,7 @@ done
 cd ..
 ```
 
-#### 4-4. Sorting 
+#### 5-4. Sorting 
 
 - uses samtools
 - hisat2_sort.sh
@@ -268,13 +268,13 @@ cd ..
 ```
 
 
-### 5. Salmon mapping
+### 6. Salmon mapping
 
-#### 5-1. Indexing 
+#### 6-1. Indexing 
 
 - Reused from [this project](https://github.com/Mira0507/seqc_comparison/blob/master/README.md)
 
-#### 5-2. Mapping
+#### 6-2. Mapping
 
 - salmon_map.sh
 
@@ -304,7 +304,7 @@ done
 cd ..
 ```
 
-### 5. Counting and downstream analysis in R 
+### 7. Counting and downstream analysis in R 
 
 - STAR vs HISAT2 vs Salmon comparison: [DE.Rmd](https://github.com/Mira0507/GSE157852/blob/master/DE.Rmd)
 - Salmon TPM vs Count input comparison: [salmon_tpm_count.Rmd](https://github.com/Mira0507/GSE157852/blob/master/salmon_tpm_count.Rmd)
