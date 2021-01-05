@@ -1175,12 +1175,11 @@ rank.ntrans.plot.fn(rankList[[4]], "log2FoldChange (Decrease)")
 ## Finding genes having large difference in rankings 
 
 ```{r large_rankdiff_genes}
-
 # Initialize a list storing rankdiff genes 
 large.rankdiff <- rankList
 
 # Assign a vector storing minimum (thresholds) rankdiff for filtering large rankdiff genes
-rankdiff.thr <- c(500, 250, 250, 250)
+rankdiff.thr <- c(10, 10, 10, 10)
 
 names(rankdiff.thr) <- rankdiff.levels
 
@@ -1188,7 +1187,10 @@ for (x in rankdiff.levels) {
 
     # Filter out observations below the rankdiff thresholds
     large.rankdiff[[x]] <- subset(rankList[[x]], 
-                                      abs(RankDiff) > rankdiff.thr[x]) 
+                                      abs(RankDiff) > rankdiff.thr[x]) %>% 
+
+    # Arrange by descending order of RankDiff
+    arrange(desc(abs(RankDiff)))
 
 }
 
@@ -1200,6 +1202,14 @@ dim(large.rankdiff[[rankdiff.levels[2]]])
 dim(large.rankdiff[[rankdiff.levels[3]]])
 dim(large.rankdiff[[rankdiff.levels[4]]])
 
+head(large.rankdiff[[rankdiff.levels[1]]])
+head(large.rankdiff[[rankdiff.levels[2]]])
+head(large.rankdiff[[rankdiff.levels[3]]])
+head(large.rankdiff[[rankdiff.levels[4]]])
+
+# Save the filtered and arranged data frames as csv files
+write.csv(large.rankdiff[[rankdiff.levels[1]]], "DE_FDR_RankDiff.csv")
+write.csv(large.rankdiff[[rankdiff.levels[2]]], "DE_LFC_RankDiff.csv")
 ```
 
 
