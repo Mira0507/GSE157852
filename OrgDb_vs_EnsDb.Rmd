@@ -1,0 +1,165 @@
+---
+output: html_document
+title: "OrgDb vs EnsDb in AnnotationHub"
+author: "Mira Sohn" 
+---
+
+
+
+```{r global_options, include=FALSE}
+
+
+knitr::opts_chunk$set(
+    warning=FALSE,
+    message=FALSE
+    )
+
+
+```
+
+
+
+## Loading packages
+
+#### - **AnnotationHub**: https://bioconductor.org/packages/devel/bioc/vignettes/AnnotationHub/inst/doc/AnnotationHub.html
+
+
+
+```{r loading_packages}
+
+library(data.table)
+library(tidyverse)
+library(rmarkdown)
+library(ggplot2)
+library(AnnotationHub)
+library(ensembldb)
+```
+
+## Setting AnnotationHub
+
+```{r setting_annotationhub}
+
+
+# Set your DB and species
+OrgDb <- "OrgDb"
+EnsDb <- "EnsDb"
+hs <- "Homo sapiens"
+mm <- "Mus musculus"
+
+# Connect to annotation DB
+ah <- AnnotationHub(hub=getAnnotationHubOption("URL")) 
+
+
+
+# Set a function extracting the DB to a data frame
+anno.fn <- function(DB, species) {
+
+    # Filter annotation of interest with DB and species
+    q.ah <- query(ah, pattern=c(DB, species), ignore.case=T)
+
+    # Extract the most recent data
+    db.code <- mcols(q.ah) %>% rownames() %>% tail(1)
+
+
+    # Save it as a data frame
+    db.df <- ah[[db.code]] 
+    
+    # Accessors:
+    # columns(db.df) 
+    # keytypes(db.df) 
+    # keys(AnnoDb, keytype=..) 
+
+    # Set transcript/gene id 
+    if (DB == OrgDb) { 
+
+        # OrDb: "ENSEMBLTRANS" for transcript id and "ENSEMBL" for gene id 
+        key.type="ENSEMBLTRANS"
+        col.type="ENSEMBL"
+
+    } else {
+
+        # EnsDb: "TXID" for transcript id and "GENEID" for gene id 
+        key.type="TXID"
+        col.type="GENEID" 
+    }
+
+    # Extract data depending on the assigned transcript/gene ids
+    anno.key <- keys(db.df, keytype=key.type)
+
+    # Create a data frame storing the annotation table
+    db.df <- select(db.df, 
+                    anno.key,
+                    keytype=key.type, 
+                    columns=col.type) 
+
+    # Add a column specifying DB and species 
+    db.df$Database <- DB 
+    db.df$Species <- species
+
+    # Change column names
+    names(db.df) <- c("TranscriptID", "GeneID", "Database", "Species")
+
+    return(db.df)
+
+}
+
+
+
+
+```
+
+## Running AnnotationHub
+
+
+```{r running_annotationhub}
+
+# Run annotationhub and create data frames the annotation along with species and DB 
+org.mm.anno <- anno.fn(OrgDb, mm) 
+ens.mm.anno <- anno.fn(EnsDb, mm)
+org.hs.anno <- anno.fn(OrgDb, hs)
+ens.hs.anno <- anno.fn(EnsDb, hs)
+
+# Combine to a single data frame
+entire.anno <- rbind(org.mm.anno, 
+                     ens.mm.anno,
+                     org.hs.anno,
+                     ens.hs.anno)
+
+anno.list <- list() 
+
+
+# Count the number of transcripts and genes by species and DB 
+counts.anno <- entire.anno %>%
+    group_by(Database, Species) %>%
+    summarize(nGene=n_distinct(GeneID), 
+              nTranscript=n_distinct(TranscriptID)) %>% 
+    gather(Category, Count, nGene, nTranscript)
+
+
+
+
+```
+
+# Plotting the number of genes and transcripts by database
+
+
+```{r plotting, fig.height=6, fig.width=8}
+
+
+ggplot(counts.anno, aes(x=Database, y=Count, fill=Database, label=Count)) + 
+    geom_bar(stat="identity") + 
+    facet_grid(Species ~ Category) + 
+    theme_bw() + 
+    theme(strip.text=element_text(size=10)) +
+    ggtitle("Number of Genes and Transcripts by Database in AnnotationHub") +
+    geom_text(vjust=1.2)
+
+
+```
+
+
+```{r session_info}
+
+sessionInfo()
+
+```
