@@ -32,6 +32,7 @@ library(DESeq2)
 library(pheatmap)
 library(gridExtra)
 library(UpSetR)
+library(ensembldb)
 library(apeglm)
 library(ashr)
 ```
@@ -39,47 +40,52 @@ library(ashr)
 ## Setting AnnotationHub
 
 
+
 ```{r annotationhub_setup}
-AnnotationSpecies <- "Homo sapiens"  # Assign your species 
-ah <- AnnotationHub(hub=getAnnotationHubOption("URL"))   # Bring annotation DB
+
+DB <- "EnsDb"                        # Set your DB of interest
+AnnotationSpecies <- "Homo sapiens"  # Set your species 
+ah <- AnnotationHub(hub=getAnnotationHubOption("URL"))  # Bring annotation DB
+
+
 ```
 
-## Running AnnotationHub 
+
+## Running AnnotationHub
+
 
 ```{r run_annotationhub}
 
 # Filter annotation of interest
-ahQuery <- query(ah, c("OrgDb", AnnotationSpecies))      
+ahQuery <- query(ah, 
+                 pattern=c(DB, AnnotationSpecies), 
+                 ignore.case=T)      
 
-if (length(ahQuery) == 1) {
-    DBName <- names(ahQuery)
-} else if (length(ahQuery) > 1) {
-               DBName <- names(ahQuery)[1]
-} else {
-    print("You don't have a valid DB")
-    rmarkdown::render() 
-} 
 
-AnnoDb <- ah[[DBName]] # Store into an OrgDb object  
+# Select the most recent data
+DBName <- mcols(ahQuery) %>%
+    rownames() %>%
+    tail(1)
 
-# Explore your OrgDb object with following accessors:
+AnnoDb <- ah[[DBName]] 
+
+# Explore your EnsDb object with following accessors:
 # columns(AnnpDb)
 # keytypes(AnnoDb)
 # keys(AnnoDb, keytype=..)
 # select(AnnoDb, keys=.., columns=.., keytype=...)
-AnnoKey <- keys(AnnoDb, keytype="ENSEMBLTRANS")
-
+AnnoKey <- keys(AnnoDb, keytype="TXID")
 # Note: Annotation has to be done with not genome but transcripts 
 AnnoDb <- select(AnnoDb, 
                  AnnoKey,
-                 keytype="ENSEMBLTRANS",
-                 columns="ENSEMBL")
+                 keytype="TXID",
+                 columns=c("GENEID", "GENENAME")) 
+
 
 # Check if your AnnoDb has been extracted and saved correctely
 class(AnnoDb)
-head(AnnoDb)
+head(AnnoDb)    # The column 1 has to assign transcript (e.g. ENSEMBLTRANS)
 ```
-
 
 ## Defining file name and path for .sf files
 
@@ -912,8 +918,7 @@ rankdiff.plot.fn <- function(df, rankedby, ylim) {
         theme(strip.text.x=element_text(size=10)) + 
         ylab("Rank Difference (TPM - Count)") + 
         ggtitle(paste("Rank Difference (TPM - Count):", rankedby)) + 
-        geom_hline(yintercept=0, color="black", size=0.5) + scale_color_gradient(low="blue", high="red") +
-        ylim(-ylim, ylim)
+        geom_hline(yintercept=0, color="black", size=0.5) + scale_color_gradient(low="blue", high="red") 
 }
 
 # Print output plots
@@ -971,6 +976,7 @@ theme_bw() +
 theme(axis.text.x=element_text(angle=45, hjust=1)) +
 ggtitle("Distribution of Absolute Rank Difference without Shrinkage \n(TPM - Count Input)") + 
 ylab("Absolute Rank Difference (TPM - Count Input)") 
+
 ```
 
 ## Relationship between rank difference and number of transcript versions
@@ -988,13 +994,13 @@ ylab("Absolute Rank Difference (TPM - Count Input)")
 
 # Create a data frame storing the number of transcripts by gene id
 AnnoDb.ntrans <- AnnoDb %>% 
-    group_by(ENSEMBL) %>% 
-    summarize(num.trans=n())
+    group_by(GENEID) %>% 
+    summarize(num.trans=n_distinct(TXID))
 
 # Set a function adding the number of transcripts by gene id 
 add.ntrans.fn <- function(df) {
 
-    left_join(df, AnnoDb.ntrans, by=c("Gene"="ENSEMBL"))}
+    left_join(df, AnnoDb.ntrans, by=c("Gene"="GENEID"))}
 
 
 
@@ -1060,7 +1066,21 @@ dim(large.rankdiff[[rankdiff.levels[2]]])
 dim(large.rankdiff[[rankdiff.levels[3]]])
 dim(large.rankdiff[[rankdiff.levels[4]]])
 
+# Set a function saving rankdiff.csv files
+saving.fn <- function(input.df, data.type) { 
 
+    filename <- paste0("tpmVScount_", data.type, "_RankDiff.csv")
+
+    return(write.csv(input.df, filename))
+}
+
+
+
+# Save the filtered and arranged data frames as csv files
+saving.fn(large.rankdiff[[rankdiff.levels[1]]], "FDR")
+saving.fn(large.rankdiff[[rankdiff.levels[2]]], "LFC")
+saving.fn(large.rankdiff[[rankdiff.levels[3]]], "LFC_Increase")
+saving.fn(large.rankdiff[[rankdiff.levels[4]]], "LFC_Decrease")
 
 ```
 
@@ -1070,15 +1090,14 @@ dim(large.rankdiff[[rankdiff.levels[4]]])
 
 #### - **blue bar**: directionality of gene expression change
 
-```{r upsetplotting}
+```{r upsetplotting, fig.width=12}
 
 # Set a function cleaning data to generate upset plots 
 upset.input.fn <- function(df) {
 
-    df <- df %>% 
+    # Filter genes with valid padj
+    df <- subset(df, !is.na(padj)) %>% 
 
-        # Filter genes with valid padj 
-        filter(!is.na(padj)) %>% 
         
         mutate(Up=ifelse(FDR == FDRv[1] & log2FoldChange > 0, Gene, ""), # What are upregulated genes? 
                
