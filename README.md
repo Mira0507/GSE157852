@@ -148,7 +148,6 @@ cd ..
 - Reused from [this project](https://github.com/Mira0507/seqc_comparison/blob/master/README.md)
 
 
-
 #### 4-2. Alignment
 
 - star_alignment.sh
