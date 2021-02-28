@@ -337,4 +337,11 @@ cd ..
 
 - [OrDb_vs_EnsDb.html](https://github.com/Mira0507/GSE157852/blob/master/OrgDb_vs_EnsDb.html): output of OrDb_vs_EnsDb
 
-- [h_FDR_RankDiff.csv]
+- [h_FDR_RankDiff.csv](https://github.com/Mira0507/GSE157852/blob/master/h_FDR_RankDiff.csv): Input file of Ranking_FDR.Rmd
+
+- [h_LFC_RankDiff.csv](https://github.com/Mira0507/GSE157852/blob/master/h_LFC_RankDiff.csv): Input file of Ranking_LFC.Rmd
+
+- [tpmVScount_FDR_RankDiff.csv](https://github.com/Mira0507/GSE157852/blob/master/tpmVScount_FDR_RankDiff.csv): Input file of Ranking_tpmVScount_FDR.Rmd
+
+- [tpmVScount_LFC_RankDiff.csv](https://github.com/Mira0507/GSE157852/blob/master/tpmVScount_LFC_RankDiff.csv): Input file of Ranking_tpmVScount_LFC.Rmd
+
