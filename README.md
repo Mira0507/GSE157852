@@ -305,5 +305,36 @@ cd ..
 
 ### 7. Counting and downstream analysis in R 
 
-- STAR vs HISAT2 vs Salmon comparison: [DE.Rmd](https://github.com/Mira0507/GSE157852/blob/master/DE.Rmd)
-- Salmon TPM vs Count input comparison: [salmon_tpm_count.Rmd](https://github.com/Mira0507/GSE157852/blob/master/salmon_tpm_count.Rmd)
+- [DE_EnsDb.Rmd](https://github.com/Mira0507/GSE157852/blob/master/DE_EnsDb.Rmd): DE analysis (STAR vs HISAT2 vs Salmon) with EnsDb 
+
+- [DE_EnsDb.html](https://github.com/Mira0507/GSE157852): output of DE_EnsDb.Rmd
+
+- [DE_OrDb.Rmd](https://github.com/Mira0507/GSE157852/blob/master/DE_OrgDb.Rmd): DE analysis (STAR vs HISAT2 vs Salmon) with OrgDb
+
+- [DE_OrDb.html](https://github.com/Mira0507/GSE157852/blob/master/DE_OrgDb.html): output of DE_OrDb.Rmd
+
+- [Ranking_FDR.Rmd](https://github.com/Mira0507/GSE157852/blob/master/Ranking_FDR.Rmd): Exploring factors affecting gene ranking difference in FDR, input from EnsDb 
+
+- [Ranking_FDR.html](https://github.com/Mira0507/GSE157852/blob/master/Ranking_FDR.html): output of Ranking_FDR.Rmd
+
+- [Ranking_LFC.Rmd](https://github.com/Mira0507/GSE157852/blob/master/Ranking_LFC.Rmd): Exploring factors affecting gene ranking difference in LFC, input from EnsDb 
+
+- [Ranking_LFC.html](https://github.com/Mira0507/GSE157852/blob/master/Ranking_LFC.html): output of Ranking_LFC.Rmd
+
+- [salmon_tpm_count.Rmd](https://github.com/Mira0507/GSE157852/blob/master/salmon_tpm_count.Rmd): Salmon TPM vs Count DE analysis by shrinkage
+
+- [salmon_tpm_count.html](https://github.com/Mira0507/GSE157852/blob/master/salmon_tpm_count.html): output of salmon_tpm_count.Rmd
+
+- [Ranking_tpmVScount_FDR.Rmd](https://github.com/Mira0507/GSE157852/blob/master/Ranking_tpmVScount_FDR.Rmd): TPM vs Count input in Salmon/DESeq2 DE analysis (no shrinkage)
+
+- [Ranking_tpmVScount_FDR.html](https://github.com/Mira0507/GSE157852/blob/master/Ranking_tpmVScount_FDR.html): output of Ranking_tpmVScount_FDR.Rmd
+
+- [Ranking_tpmVScount_LFC.Rmd](https://github.com/Mira0507/GSE157852/blob/master/Ranking_tpmVScount_LFC.Rmd): TPM vs Count input in Salmon/DESeq2 DE analysis (no shrinkage)
+
+- [Ranking_tpmVScount_LFC.html](https://github.com/Mira0507/GSE157852/blob/master/Ranking_tpmVScount_LFC.html): output of Ranking_tpmVScount_LFC.Rmd
+
+- [OrDb_vs_EnsDb.Rmd](https://github.com/Mira0507/GSE157852/blob/master/OrgDb_vs_EnsDb.Rmd): Comparing OrgDb vs EnsDb in AnnotationHub
+
+- [OrDb_vs_EnsDb.html](https://github.com/Mira0507/GSE157852/blob/master/OrgDb_vs_EnsDb.html): output of OrDb_vs_EnsDb
+
+- [h_FDR_RankDiff.csv]
